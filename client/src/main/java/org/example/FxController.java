@@ -4,11 +4,24 @@ import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import org.example.logic.ClientLogic;
 
 import java.util.List;
 
 public class FxController {
+    @FXML
+    public TextField loginField;
+    @FXML
+    public TextField passwordField;
+    private String login;
+    private String password;
+    @FXML
+    public HBox fileBox;
+    @FXML
+    public VBox loginBox;
     @FXML
     private ListView<String> serverFileList;
     @FXML
@@ -20,7 +33,7 @@ public class FxController {
 
     public void onSendToServerButtonClick(ActionEvent actionEvent) {
         final String path = clientFileList.getSelectionModel().getSelectedItem();
-        List<String> filesInServer = ClientLogic.sendFileToServer(path);
+        List<String> filesInServer = ClientLogic.sendFileToServer(path, login, password);
         updateServerFilesList(filesInServer);
     }
 
@@ -32,19 +45,19 @@ public class FxController {
 
     public void updateServerFileList(ActionEvent actionEvent) {
 
-        List<String> serverFilesList = ClientLogic.getServerFileList();
+        List<String> serverFilesList = ClientLogic.getServerFileList(login, password);
         updateServerFilesList(serverFilesList);
     }
 
     public void onSendToClientButtonClick(ActionEvent actionEvent) {
         final String path = serverFileList.getSelectionModel().getSelectedItem();
-        ClientLogic.sendFromServerToClient(path);
+        ClientLogic.sendFromServerToClient(path, login, password);
         updateUserFilesList();
     }
 
     public void onDeleteInServerButtonClick(ActionEvent actionEvent) {
         final String fileForDelete = serverFileList.getSelectionModel().getSelectedItem();
-        List<String> serverFilesList = ClientLogic.deleteFileInServer(fileForDelete);
+        List<String> serverFilesList = ClientLogic.deleteFileInServer(fileForDelete, login, password);
         updateServerFilesList(serverFilesList);
     }
 
@@ -61,5 +74,25 @@ public class FxController {
         serverFileList.getItems().addAll(files);
         System.out.println("Список файлов на сервере обновлен");
         serverFileList.getSelectionModel().selectFirst();
+    }
+
+    public void authButtonClick(ActionEvent actionEvent) {
+        this.login = loginField.getText();
+        this.password = passwordField.getText();
+        List<String> serverFilesList = ClientLogic.getServerFileList(login, password);
+        loginBox.setVisible(false);
+        fileBox.setVisible(true);
+        updateUserFilesList();
+        updateServerFilesList(serverFilesList);
+    }
+
+    public void regNewClientButtonClick(ActionEvent actionEvent) {
+        this.login = loginField.getText();
+        this.password = passwordField.getText();
+        if (ClientLogic.regNewClientInServer(login, password)){
+            loginBox.setVisible(false);
+            fileBox.setVisible(true);
+            updateUserFilesList();
+        }
     }
 }

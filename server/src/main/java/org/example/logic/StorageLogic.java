@@ -3,6 +3,7 @@ package org.example.logic;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
+import org.example.auth.AuthService;
 import org.example.config.Config;
 import org.example.model.Command;
 import org.example.model.Message;
@@ -12,15 +13,25 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
 public class StorageLogic {
 
-    public static void process(Message message, Channel channel) {
-        if (message.getCommand().equals(Command.PUT)) {
+    public static void process(Message message, Channel channel, AuthService authService) {
+        String login = message.getLogin();
+        String password = message.getPassword();
+        int id = -1;
+        try {
+            id = authService.getIdByLoginAndPassword(login, password);
+        } catch (SQLException e) {
+            System.out.println("Error search id by login and password");
+        }
+
+        if (message.getCommand().equals(Command.PUT) && id > 0) {
             System.out.println(message.getFile()); // todo delete
-            Path file = Paths.get(Config.USER_DIRECTORY, message.getFile());
+            Path file = Paths.get(Config.USER_DIRECTORY, String.valueOf(id), message.getFile());
             try {
                 Files.createDirectories(file.getParent());
                 Files.createFile(file);
@@ -40,7 +51,7 @@ public class StorageLogic {
                 channel.writeAndFlush(Message.builder()
                         .command(message.getCommand())
                         .status("OK")
-                        .files(getFileList()).build());
+                        .files(getFileList(id)).build());
             } catch (IOException e) {
                 ChannelFuture future = channel.writeAndFlush(
                         Message.builder().command(message.getCommand()).status("FILE ERROR").build()
@@ -52,10 +63,10 @@ public class StorageLogic {
             }
         }
 
-        if (message.getCommand().equals(Command.GET)) {
-            Path file = Paths.get(message.getFile());
-            String cleanPath = Paths.get(Config.USER_DIRECTORY).relativize(file).toString();
+        if (message.getCommand().equals(Command.GET) && id > 0) {
             try {
+                Path file = Paths.get(message.getFile());
+                String cleanPath = Paths.get(Config.USER_DIRECTORY, String.valueOf(id)).relativize(file).toString();
                 if (Files.exists(file) && Files.size(file) < Config.MAX_OBJECT_SIZE) {
                     Message message1 = Message.builder()
                             .command(message.getCommand())
@@ -76,10 +87,10 @@ public class StorageLogic {
             }
         }
 
-        if (message.getCommand().equals(Command.FILES)) {
+        if (message.getCommand().equals(Command.FILES) && id > 0) {
 
             try {
-                List<String> fileList = getFileList();
+                List<String> fileList = getFileList(id);
                 fileList.forEach(System.out::println); //todo delete
 
                 Message message1 = Message.builder()
@@ -99,11 +110,11 @@ public class StorageLogic {
             }
         }
 
-        if (message.getCommand().equals(Command.DELETE)){
+        if (message.getCommand().equals(Command.DELETE) && id > 0){
             String pathForDelete = message.getFile();
             try {
                 deleteFile(pathForDelete);
-                List<String> serverFileList = getFileList();
+                List<String> serverFileList = getFileList(id);
                 Message message1 = Message.builder()
                         .command(message.getCommand())
                         .files(serverFileList)
@@ -119,12 +130,32 @@ public class StorageLogic {
                 channel.close();
             }
         }
+
+        if (message.getCommand().equals(Command.ADD_CLIENT)){
+            try {
+                id = authService.addClient(message.getLogin(), message.getPassword());
+                Path file = Paths.get(Config.USER_DIRECTORY, String.valueOf(id));
+                Files.createDirectories(file);
+                Message message1 = Message.builder()
+                        .command(message.getCommand())
+                        .status("OK")
+                        .build();
+                channel.writeAndFlush(message1);
+            } catch (SQLException | IOException e) {
+                ChannelFuture future = channel.writeAndFlush(
+                        Message.builder().command(message.getCommand()).status("CLIENT CREATING ERROR").build()
+                );
+                future.addListener(ChannelFutureListener.CLOSE);
+            } finally {
+                channel.close();
+            }
+        }
     }
 
-    public static List<String> getFileList() throws IOException {
+    public static List<String> getFileList(int id) throws IOException {
 
-        List<String> fileList = new ArrayList();
-        Files.walkFileTree(Paths.get(Config.USER_DIRECTORY), new SimpleFileVisitor<Path>() {
+        List<String> fileList = new ArrayList<>();
+        Files.walkFileTree(Paths.get(Config.USER_DIRECTORY, String.valueOf(id)), new SimpleFileVisitor<Path>() {
             @Override
             public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
                 if (!Files.isDirectory(file)) {

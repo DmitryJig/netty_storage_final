@@ -19,6 +19,8 @@ public class Message {
     private String status;
     private String file;
     private List<String> files;
+    private String login;
+    private String password;
     private long length;
     private byte[] data;
 }

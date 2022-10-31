@@ -11,6 +11,7 @@ import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ClientLogic {
 
@@ -43,7 +44,7 @@ public class ClientLogic {
         }
     }
 
-    public static List<String> sendFileToServer(String path) {
+    public static List<String> sendFileToServer(String path, String login, String password) {
         Path send = Paths.get(path);
         String pathInServer = Paths.get(Config.USER_DIRECTORY).relativize(send).toString();
         List<String> filesInServer = new ArrayList<>();
@@ -55,6 +56,8 @@ public class ClientLogic {
                             .command(Command.PUT)
                             .file(pathInServer)
                             .length(Files.size(send))
+                            .login(login)
+                            .password(password)
                             .data(Files.readAllBytes(send))
                             .build();
                     new Client().send(message, response -> {
@@ -74,11 +77,13 @@ public class ClientLogic {
         return filesInServer;
     }
 
-    public static List<String> getServerFileList() {
+    public static List<String> getServerFileList(String login, String password) {
         List<String> serverFileList = new ArrayList<>();
 
         Message message = Message.builder()
                 .command(Command.FILES)
+                .login(login)
+                .password(password)
                 .build();
         new Client().send(message, response -> {
             serverFileList.addAll(response.getFiles());
@@ -88,10 +93,15 @@ public class ClientLogic {
         return serverFileList;
     }
 
-    public static List<String> deleteFileInServer(String path) {
+    public static List<String> deleteFileInServer(String path, String login, String password) {
         List<String> serverFileList = new ArrayList<>();
 
-        Message message = Message.builder().command(Command.DELETE).file(path).build();
+        Message message = Message.builder()
+                .command(Command.DELETE)
+                .login(login)
+                .password(password)
+                .file(path)
+                .build();
         new Client().send(message, response -> {
             serverFileList.addAll(response.getFiles());
         });
@@ -99,11 +109,13 @@ public class ClientLogic {
         return serverFileList;
     }
 
-    public static void sendFromServerToClient(String path) {
+    public static void sendFromServerToClient(String path, String login, String password) {
 
         Message message = Message.builder()
                 .command(Command.GET)
                 .file(path)
+                .login(login)
+                .password(password)
                 .build();
         new Client().send(message, response -> {
             Path file = Paths.get(Config.USER_DIRECTORY, response.getFile());
@@ -121,5 +133,20 @@ public class ClientLogic {
                 throw new RuntimeException(e);
             }
         });
+    }
+
+    public static boolean regNewClientInServer(String login, String password){
+        AtomicBoolean answer = new AtomicBoolean(false);
+        Message message = Message.builder()
+                .command(Command.ADD_CLIENT)
+                .login(login)
+                .password(password)
+                .build();
+        new Client().send(message, response -> {
+            if (response.getStatus().equals("OK")){
+                answer.set(true);
+            }
+        });
+        return answer.get();
     }
 }
