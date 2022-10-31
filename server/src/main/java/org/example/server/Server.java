@@ -6,10 +6,13 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.json.JsonObjectDecoder;
+import org.example.auth.AuthService;
+import org.example.auth.DbAuthService;
 import org.example.config.Config;
 
 public class Server {
 
+    private AuthService authService;
     private final int port;
     public Server(){
         this.port = Config.PORT;
@@ -20,6 +23,8 @@ public class Server {
     }
 
     private void run() {
+        authService = new DbAuthService();
+
         EventLoopGroup bossGroup = new NioEventLoopGroup();
         EventLoopGroup workerGroup = new NioEventLoopGroup();
 
@@ -37,7 +42,7 @@ public class Server {
                             new JsonObjectDecoder(),
                             new JacksonDecoder(),
                             new JacksonEncoder(),
-                            new ServerHandler()
+                            new ServerHandler(authService)
                     );
                 }
             });
@@ -49,6 +54,7 @@ public class Server {
         } finally {
             bossGroup.shutdownGracefully();
             workerGroup.shutdownGracefully();
+            authService.close();
         }
     }
 }

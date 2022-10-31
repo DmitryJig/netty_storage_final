@@ -9,9 +9,20 @@
         <Insets bottom="20.0" left="20.0" right="20.0" top="20.0"/>
     </padding>
 
-    <HBox VBox.vgrow="ALWAYS" spacing="20">
+
+    <VBox fx:id="loginBox" spacing="5">
+        <Label text="Enter your login and password"/>
+        <HBox VBox.vgrow="ALWAYS">
+            <TextField fx:id="loginField" promptText="Login"/>
+            <PasswordField fx:id="passwordField" promptText="Password"/>
+            <Button fx:id="authButton" defaultButton="true" onAction="#authButtonClick" text="Войти"/>
+        </HBox>
+        <Button fx:id="regNewClientButton" defaultButton="true" onAction="#regNewClientButtonClick" text="register new client with this login and password"/>
+    </VBox>
+
+    <HBox fx:id="fileBox" VBox.vgrow="ALWAYS" spacing="20" visible="false">
         <VBox spacing="5">
-            <Label  text="client directory"/>
+            <Label text="client directory"/>
             <Button text="Update file list in user directory" onAction="#updateUserFileList"/>
             <ListView fx:id="clientFileList" minWidth="300" maxWidth="200"/>
             <Button text="send to server" onAction="#onSendToServerButtonClick"/>
